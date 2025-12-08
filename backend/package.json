@@ -7,8 +7,11 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "migrate": "node scripts/migrate.js",
-    "seed": "node scripts/seed-data.js"
+    "seed": "node scripts/seed-data.js",
+    "lint": "eslint src/**/*.js"
   },
   "keywords": ["navigation", "mapping", "gis", "routing"],
   "author": "dhruvvdave",
@@ -30,7 +33,8 @@
     "redis": "^4.6.11",
     "joi": "^17.11.0",
     "winston": "^3.11.0",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "express-rate-limit": "^7.1.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
