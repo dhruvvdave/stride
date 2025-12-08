@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useSelector, useDispatch } from 'react-redux';
 import Layout from '../components/layout/Layout';
+import ReportObstacleModal from '../components/reporting/ReportObstacleModal';
 import { setCenter, setUserLocation } from '../store/slices/mapSlice';
 import { openReportModal } from '../store/slices/obstacleSlice';
 import Button from '../components/common/Button';
@@ -55,6 +56,7 @@ const Map = () => {
 
   return (
     <Layout requireAuth={true}>
+      <ReportObstacleModal />
       <div className="h-[calc(100vh-64px)] relative">
         {/* Search Bar */}
         <div className="absolute top-4 left-4 right-4 z-[1000] max-w-md">

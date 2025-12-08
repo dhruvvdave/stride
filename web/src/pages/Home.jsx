@@ -30,7 +30,7 @@ const Home = () => {
     {
       icon: TruckIcon,
       title: 'Vehicle Profiles',
-      description: 'Customize routes based on your vehicle's clearance and suspension.',
+      description: 'Customize routes based on your vehicle clearance and suspension.',
     },
     {
       icon: ChartBarIcon,
