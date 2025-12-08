@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const db = require('../config/database');
+const db = require('../../config/database');
 
 /**
  * Verify JWT token and attach user to request
