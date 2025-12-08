@@ -5,7 +5,7 @@ import Card from '../components/common/Card';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import { updateProfile } from '../store/slices/authSlice';
-import { updateProfile as updateProfileService } from '../services/auth';
+import { updateProfile as updateProfileService, changePassword } from '../services/auth';
 import toast from 'react-hot-toast';
 
 const Settings = () => {
@@ -70,7 +70,10 @@ const Settings = () => {
     setLoading(true);
     
     try {
-      // Call password change API
+      await changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
       toast.success('Password updated successfully');
       setPasswordData({
         currentPassword: '',
@@ -78,7 +81,7 @@ const Settings = () => {
         confirmPassword: '',
       });
     } catch (error) {
-      toast.error('Failed to update password');
+      toast.error(error.response?.data?.message || 'Failed to update password');
     } finally {
       setLoading(false);
     }

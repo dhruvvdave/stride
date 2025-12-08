@@ -55,17 +55,21 @@ const Premium = () => {
 
   const handleUpgrade = async () => {
     try {
-      // Replace with actual price ID from your Stripe dashboard
-      await redirectToCheckout('price_premium_monthly');
+      const priceId = import.meta.env.VITE_STRIPE_PRICE_ID || 'price_premium_monthly';
+      await redirectToCheckout(priceId);
     } catch (error) {
       toast.error('Failed to start checkout. Please try again.');
       console.error('Checkout error:', error);
     }
   };
 
-  const handleManageSubscription = () => {
-    // Redirect to Stripe customer portal
-    window.location.href = '/api/stripe/create-portal-session';
+  const handleManageSubscription = async () => {
+    try {
+      await redirectToPortal();
+    } catch (error) {
+      toast.error('Failed to open subscription management. Please try again.');
+      console.error('Portal error:', error);
+    }
   };
 
   return (
