@@ -1,55 +1,157 @@
-import React from 'react';
-import './App.css';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import { Toaster } from 'react-hot-toast';
+import { store } from './store';
+import { fetchCurrentUser } from './store/slices/authSlice';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import LoadingSpinner from './components/common/LoadingSpinner';
+
+// Pages
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Map from './pages/Map';
+import RouteResult from './pages/RouteResult';
+import Navigation from './pages/Navigation';
+import Profile from './pages/Profile';
+import Community from './pages/Community';
+import Settings from './pages/Settings';
+import Premium from './pages/Premium';
+
+import './index.css';
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useSelector((state) => state.auth);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
+
+// App Content Component (needs to be inside Router)
+function AppContent() {
+  const dispatch = useDispatch();
+  const { isAuthenticated, token } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    // Fetch current user if token exists
+    if (token && isAuthenticated) {
+      dispatch(fetchCurrentUser());
+    }
+  }, [dispatch, token, isAuthenticated]);
+
+  return (
+    <ErrorBoundary>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Protected Routes */}
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute>
+              <Map />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/route-result"
+          element={
+            <ProtectedRoute>
+              <RouteResult />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/navigate"
+          element={
+            <ProtectedRoute>
+              <Navigation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/community"
+          element={
+            <ProtectedRoute>
+              <Community />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/premium"
+          element={
+            <ProtectedRoute>
+              <Premium />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {/* Toast Notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#fff',
+            color: '#212121',
+          },
+          success: {
+            iconTheme: {
+              primary: '#4CAF50',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#F44336',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+    </ErrorBoundary>
+  );
+}
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1 className="App-title">
-          Stride 🚗
-        </h1>
-        <p className="App-tagline">
-          Navigate smarter. Drive smoother.
-        </p>
-      </header>
-      
-      <main className="App-main">
-        <section className="Card">
-          <h2>Welcome to Stride!</h2>
-          <p>
-            The navigation app that finds optimal routes by avoiding speed
-            bumps, potholes, and rough roads.
-          </p>
-        </section>
-
-        <section className="Card">
-          <h2>Getting Started</h2>
-          <p>
-            This is the starter template for the Stride web application.
-          </p>
-          <p>
-            Built with React, Vite, and TailwindCSS for a fast and modern
-            development experience.
-          </p>
-        </section>
-
-        <section className="Card">
-          <h2>Features</h2>
-          <ul className="Feature-list">
-            <li>🗺️ Smart navigation with obstacle avoidance</li>
-            <li>📍 Community-powered obstacle mapping</li>
-            <li>🤖 AI-powered route optimization (Premium)</li>
-            <li>📊 Advanced analytics and insights (Premium)</li>
-          </ul>
-        </section>
-      </main>
-
-      <footer className="App-footer">
-        <p>
-          Made with ❤️ for smooth drives everywhere
-        </p>
-      </footer>
-    </div>
+    <Provider store={store}>
+      <Router>
+        <AppContent />
+      </Router>
+    </Provider>
   );
 }
 
