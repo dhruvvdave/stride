@@ -4,9 +4,9 @@ export const uploadImage = async (imageUri) => {
   try {
     const formData = new FormData();
     
-    // Extract file extension from URI
+    // Extract file extension from URI with validation
     const uriParts = imageUri.split('.');
-    const fileType = uriParts[uriParts.length - 1];
+    const fileType = uriParts.length > 1 ? uriParts[uriParts.length - 1] : 'jpg';
     
     formData.append('file', {
       uri: imageUri,

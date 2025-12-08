@@ -25,7 +25,11 @@ import {
   resetReporting,
 } from '../store/slices/obstacleSlice';
 import { uploadImage } from '../services/uploadService';
-import { COLORS, OBSTACLE_TYPES, OBSTACLE_SEVERITY } from '../config/constants';
+import {
+  COLORS,
+  OBSTACLE_TYPES,
+  OBSTACLE_SEVERITY,
+} from '../config/constants';
 
 const ReportScreen = ({ navigation }) => {
   const dispatch = useDispatch();

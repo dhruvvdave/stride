@@ -1,11 +1,10 @@
 // API Configuration
-export const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3000/api' 
-  : 'https://api.stride.com/api';
+export const API_BASE_URL = process.env.API_BASE_URL || 
+  (__DEV__ ? 'http://localhost:3000/api' : 'https://api.stride.com/api');
 
 // Cloudinary Configuration
-export const CLOUDINARY_CLOUD_NAME = 'stride-app';
-export const CLOUDINARY_UPLOAD_PRESET = 'stride_obstacles';
+export const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'stride-app';
+export const CLOUDINARY_UPLOAD_PRESET = process.env.CLOUDINARY_UPLOAD_PRESET || 'stride_obstacles';
 
 // Map Configuration
 export const DEFAULT_MAP_REGION = {

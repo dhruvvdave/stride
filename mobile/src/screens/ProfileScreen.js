@@ -19,7 +19,9 @@ import {
   fetchUserStats,
   fetchAchievements,
   fetchVehicles,
+  removeVehicle,
 } from '../store/slices/userSlice';
+import { deleteVehicle } from '../services/userService';
 import { COLORS } from '../config/constants';
 
 const ProfileScreen = ({ navigation }) => {
@@ -152,8 +154,22 @@ const ProfileScreen = ({ navigation }) => {
                 onEdit={() =>
                   navigation.navigate('VehicleForm', { vehicle })
                 }
-                onDelete={() => {
-                  // Handle delete
+                onDelete={async () => {
+                  try {
+                    await deleteVehicle(vehicle.id);
+                    dispatch(removeVehicle(vehicle.id));
+                    Toast.show({
+                      type: 'success',
+                      text1: 'Vehicle Deleted',
+                      text2: 'Vehicle has been removed',
+                    });
+                  } catch (error) {
+                    Toast.show({
+                      type: 'error',
+                      text1: 'Delete Failed',
+                      text2: error.message || 'Failed to delete vehicle',
+                    });
+                  }
                 }}
               />
             ))

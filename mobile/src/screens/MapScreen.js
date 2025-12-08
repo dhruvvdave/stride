@@ -73,7 +73,7 @@ const MapScreen = ({ navigation }) => {
           text2: 'Unable to get your location',
         });
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
     );
   };
 

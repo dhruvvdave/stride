@@ -100,12 +100,28 @@ const userSlice = createSlice({
         state.error = action.payload;
       })
       // Fetch Achievements
+      .addCase(fetchAchievements.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(fetchAchievements.fulfilled, (state, action) => {
+        state.loading = false;
         state.achievements = action.payload;
       })
+      .addCase(fetchAchievements.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       // Fetch Vehicles
+      .addCase(fetchVehicles.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(fetchVehicles.fulfilled, (state, action) => {
+        state.loading = false;
         state.vehicles = action.payload;
+      })
+      .addCase(fetchVehicles.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       // Fetch Leaderboard
       .addCase(fetchLeaderboard.pending, (state) => {

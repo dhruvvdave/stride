@@ -44,8 +44,8 @@ const NavigationScreen = ({ navigation }) => {
       left: 'turn-left',
       right: 'turn-right',
       straight: 'arrow-upward',
-      'slight-left': 'turn-slight-left',
-      'slight-right': 'turn-slight-right',
+      'slight-left': 'subdirectory-arrow-left',
+      'slight-right': 'subdirectory-arrow-right',
     };
     return iconMap[direction] || 'navigation';
   };
