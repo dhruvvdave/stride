@@ -14,7 +14,7 @@ const RouteResult = () => {
   };
 
   return (
-    <Layout requireAuth={true}>
+    <Layout requireAuth={false}>
       <div className="p-6 max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Route Comparison</h1>
 
@@ -70,7 +70,7 @@ const RouteResult = () => {
           <Card padding="lg">
             <div className="text-center py-12">
               <p className="text-gray-600 mb-4">No routes available</p>
-              <Button onClick={() => navigate('/app')}>
+              <Button onClick={() => navigate('/')}>
                 Back to Map
               </Button>
             </div>

@@ -95,8 +95,8 @@ const Home = () => {
             </Link>
             <div className="flex items-center space-x-4">
               {isAuthenticated ? (
-                <Link to="/app">
-                  <Button>Go to App</Button>
+                <Link to="/">
+                  <Button>Go to Map</Button>
                 </Link>
               ) : (
                 <>
@@ -127,9 +127,9 @@ const Home = () => {
               Perfect for lowered cars, sports cars, and anyone who values a smooth ride.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to={isAuthenticated ? '/app' : '/register'}>
+              <Link to="/">
                 <Button size="lg">
-                  {isAuthenticated ? 'Open Map' : 'Get Started Free'}
+                  Open Map
                 </Button>
               </Link>
               <a href="#features">
