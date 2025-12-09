@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 import Community from './pages/Community';
 import Settings from './pages/Settings';
 import Premium from './pages/Premium';
+import SearchScreen from './pages/SearchScreen';
 
 import './index.css';
 
@@ -58,6 +59,7 @@ function AppContent() {
         <Route path="/register" element={<Register />} />
         <Route path="/route-result" element={<RouteResult />} />
         <Route path="/navigate" element={<Navigation />} />
+        <Route path="/search" element={<SearchScreen />} />
 
         {/* Protected Routes */}
         <Route
