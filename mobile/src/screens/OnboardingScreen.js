@@ -1,86 +1,125 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
   SafeAreaView,
   StyleSheet,
-  Image,
-  ScrollView,
+  Dimensions,
+  Animated,
 } from 'react-native';
+import Swiper from 'react-native-swiper';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Button from '../components/Common/Button';
-import { COLORS } from '../config/constants';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
+
+const { width } = Dimensions.get('window');
+
+const hapticOptions = {
+  enableVibrateFallback: true,
+  ignoreAndroidSystemSettings: false,
+};
 
 const OnboardingScreen = ({ navigation }) => {
-  const [currentPage, setCurrentPage] = useState(0);
+  const swiperRef = useRef(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const pages = [
     {
-      icon: '🗺️',
-      title: 'Smart Route Planning',
-      description: 'Find the smoothest routes by avoiding speed bumps, potholes, and rough roads.',
+      icon: '👋',
+      title: 'Welcome to Stride',
+      description: 'Navigate smarter. Drive smoother. Experience the future of navigation.',
+      color: colors.primary,
     },
     {
-      icon: '📍',
-      title: 'Report Obstacles',
-      description: 'Help the community by reporting road obstacles with your camera.',
+      icon: '🚧',
+      title: 'Avoid Obstacles',
+      description: 'Get real-time alerts for speed bumps, potholes, and rough roads. Choose the smoothest route.',
+      color: colors.warning,
     },
     {
       icon: '🏆',
-      title: 'Earn Achievements',
-      description: 'Get points, unlock achievements, and climb the leaderboard.',
+      title: 'Join the Community',
+      description: 'Report obstacles, earn points, and climb the leaderboard. Help make roads better for everyone.',
+      color: colors.success,
+    },
+    {
+      icon: '⭐',
+      title: 'Unlock Premium',
+      description: 'AI-powered routing, advanced analytics, vehicle profiles, and unlimited offline maps.',
+      color: colors.premium,
     },
   ];
 
   const handleNext = () => {
-    if (currentPage < pages.length - 1) {
-      setCurrentPage(currentPage + 1);
+    ReactNativeHapticFeedback.trigger('impactLight', hapticOptions);
+    if (currentIndex < pages.length - 1) {
+      swiperRef.current?.scrollBy(1);
     } else {
-      navigation.navigate('Login');
+      handleGetStarted();
     }
   };
 
   const handleSkip = () => {
-    navigation.navigate('Login');
+    ReactNativeHapticFeedback.trigger('impactLight', hapticOptions);
+    handleGetStarted();
+  };
+
+  const handleGetStarted = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      navigation.replace('Map');
+    });
+  };
+
+  const handleIndexChanged = (index) => {
+    setCurrentIndex(index);
+    ReactNativeHapticFeedback.trigger('impactLight', hapticOptions);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          <Text style={styles.icon}>{pages[currentPage].icon}</Text>
-          <Text style={styles.title}>{pages[currentPage].title}</Text>
-          <Text style={styles.description}>{pages[currentPage].description}</Text>
-        </View>
-
-        <View style={styles.pagination}>
-          {pages.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                index === currentPage && styles.activeDot,
-              ]}
-            />
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <Swiper
+          ref={swiperRef}
+          loop={false}
+          onIndexChanged={handleIndexChanged}
+          dot={<View style={styles.dot} />}
+          activeDot={<View style={styles.activeDot} />}
+          paginationStyle={styles.pagination}
+        >
+          {pages.map((page, index) => (
+            <View key={index} style={styles.slide}>
+              <View style={styles.iconContainer}>
+                <Text style={styles.icon}>{page.icon}</Text>
+              </View>
+              <Text style={styles.title}>{page.title}</Text>
+              <Text style={styles.description}>{page.description}</Text>
+            </View>
           ))}
-        </View>
+        </Swiper>
 
         <View style={styles.actions}>
           <Button
-            title={currentPage === pages.length - 1 ? 'Get Started' : 'Next'}
+            title={currentIndex === pages.length - 1 ? 'Get Started' : 'Next'}
             onPress={handleNext}
             style={styles.button}
           />
-          <Button
-            title="Skip"
-            onPress={handleSkip}
-            variant="text"
-            style={styles.skipButton}
-          />
+          {currentIndex < pages.length - 1 && (
+            <Button
+              title="Skip"
+              onPress={handleSkip}
+              variant="text"
+              style={styles.skipButton}
+            />
+          )}
         </View>
-      </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 };
@@ -88,60 +127,71 @@ const OnboardingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
+    backgroundColor: colors.background.light,
   },
   content: {
     flex: 1,
+  },
+  slide: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingHorizontal: spacing.lg,
+  },
+  iconContainer: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: colors.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xxl,
   },
   icon: {
-    fontSize: 120,
-    marginBottom: 32,
+    fontSize: 80,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#212121',
-    marginBottom: 16,
+    fontWeight: typography.bold,
+    color: colors.text.light,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   description: {
-    fontSize: 16,
-    color: '#757575',
+    fontSize: typography.body,
+    color: colors.gray600,
     textAlign: 'center',
     lineHeight: 24,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
   },
   pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 32,
+    bottom: 120,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.gray300,
     marginHorizontal: 4,
   },
   activeDot: {
-    backgroundColor: COLORS.primary,
     width: 24,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginHorizontal: 4,
   },
   actions: {
-    marginBottom: 16,
+    position: 'absolute',
+    bottom: spacing.xl,
+    left: spacing.lg,
+    right: spacing.lg,
   },
   button: {
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   skipButton: {
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
 });
 
