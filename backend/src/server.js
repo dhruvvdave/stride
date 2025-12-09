@@ -28,6 +28,10 @@ const vehicleRoutes = require('./api/routes/vehicles');
 const favoriteRoutes = require('./api/routes/favorites');
 const gamificationRoutes = require('./api/routes/gamification');
 const clubRoutes = require('./api/routes/clubs');
+const adminRoutes = require('./api/routes/admin');
+
+// Import jobs
+const { initializeJobs } = require('./jobs');
 
 // Create Express app
 const app = express();
@@ -109,6 +113,7 @@ app.get('/api', (req, res) => {
       leaderboard: '/api/leaderboard',
       achievements: '/api/achievements',
       clubs: '/api/clubs',
+      admin: '/api/admin',
     },
   });
 });
@@ -127,6 +132,7 @@ app.use('/api/favorites', favoriteRoutes);
 app.use('/api/leaderboard', gamificationRoutes);
 app.use('/api/achievements', gamificationRoutes);
 app.use('/api/clubs', clubRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -146,6 +152,13 @@ async function initializeConnections() {
       await getRedisClient();
     } catch (redisError) {
       logger.warn('⚠️  Redis connection failed (optional)', { error: redisError.message });
+    }
+
+    // Initialize background jobs
+    try {
+      await initializeJobs();
+    } catch (jobError) {
+      logger.warn('⚠️  Background jobs initialization failed (optional)', { error: jobError.message });
     }
   } catch (error) {
     logger.error('❌ Failed to initialize connections', { error: error.message });

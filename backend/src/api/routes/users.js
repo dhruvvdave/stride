@@ -5,6 +5,7 @@ const { auth } = require('../middleware/auth');
 const { validate, validateParams, validateQuery } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { calculateLevel } = require('../../utils/pointsCalculator');
+const { calculateTrustScore, getTrustLevel } = require('../../services/trustScore');
 
 const router = express.Router();
 
@@ -238,6 +239,68 @@ router.get('/', validateQuery(leaderboardQuerySchema), asyncHandler(async (req, 
         total: parseInt(countResult.rows[0].total),
         limit,
         offset,
+      },
+    },
+  });
+}));
+
+/**
+ * GET /api/users/:id/trust-score
+ * Get user trust score and statistics
+ */
+router.get('/:id/trust-score', validateParams(userIdSchema), asyncHandler(async (req, res) => {
+  const userId = req.params.id;
+
+  // Get user info
+  const userResult = await db.query(
+    `SELECT 
+      name, 
+      trust_score, 
+      reports_verified, 
+      reports_disputed,
+      created_at
+     FROM users 
+     WHERE id = $1`,
+    [userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    return res.status(404).json({
+      success: false,
+      error: { message: 'User not found' },
+    });
+  }
+
+  const user = userResult.rows[0];
+
+  // Calculate current trust score (will match DB if recently updated)
+  const calculatedScore = await calculateTrustScore(userId);
+  const trustLevel = getTrustLevel(calculatedScore);
+
+  // Get total reports
+  const reportsResult = await db.query(
+    'SELECT COUNT(*) as total FROM reports WHERE user_id = $1',
+    [userId]
+  );
+
+  const totalReports = parseInt(reportsResult.rows[0].total);
+  const accuracy = totalReports > 0 
+    ? ((user.reports_verified / totalReports) * 100).toFixed(1)
+    : 0;
+
+  res.json({
+    success: true,
+    data: {
+      trustScore: calculatedScore,
+      trustLevel,
+      statistics: {
+        reportsVerified: user.reports_verified,
+        reportsDisputed: user.reports_disputed,
+        totalReports,
+        accuracy: parseFloat(accuracy),
+        accountAge: Math.floor(
+          (Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)
+        ),
       },
     },
   });
