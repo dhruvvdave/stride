@@ -1,20 +1,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Layout from '../components/layout/Layout';
 import ReportObstacleModal from '../components/reporting/ReportObstacleModal';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
+import GlassCard from '../components/common/GlassCard';
 import { setCenter, setUserLocation } from '../store/slices/mapSlice';
 import { openReportModal } from '../store/slices/obstacleSlice';
-import { geocodeAddress } from '../services/routing';
 import {
   MapPinIcon,
   MagnifyingGlassIcon,
   UserCircleIcon,
   ExclamationTriangleIcon,
-  Bars3Icon,
+  HomeIcon,
+  BriefcaseIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -41,16 +44,24 @@ function MapUpdater({ center, zoom }) {
 const Map = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { center, zoom, obstacles, userLocation } = useSelector((state) => state.map);
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [mapReady, setMapReady] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [currentLocationInput, setCurrentLocationInput] = useState('');
-  const [destinationInput, setDestinationInput] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeSuggestionField, setActiveSuggestionField] = useState(null);
+  const [fromLocation, setFromLocation] = useState('');
+  const [toLocation, setToLocation] = useState('');
   const [selectedDestination, setSelectedDestination] = useState(null);
+
+  // Handle location from SearchScreen
+  useEffect(() => {
+    if (location.state?.selectedLocation) {
+      const loc = location.state.selectedLocation;
+      setSelectedDestination(loc);
+      setToLocation(loc.name);
+      dispatch(setCenter([loc.lat, loc.lng]));
+    }
+  }, [location.state, dispatch]);
 
   useEffect(() => {
     // Get user's current location
@@ -60,7 +71,7 @@ const Map = () => {
           const { latitude, longitude } = position.coords;
           dispatch(setUserLocation({ lat: latitude, lng: longitude }));
           dispatch(setCenter([latitude, longitude]));
-          setCurrentLocationInput('Current Location');
+          setFromLocation('Current Location');
         },
         (error) => {
           console.error('Error getting location:', error);
@@ -71,51 +82,6 @@ const Map = () => {
     }
   }, [dispatch]);
 
-  const handleSearchInput = useCallback(async (value, field) => {
-    if (field === 'current') {
-      setCurrentLocationInput(value);
-    } else {
-      setDestinationInput(value);
-    }
-    
-    setActiveSuggestionField(field);
-    
-    if (value.length > 2) {
-      try {
-        const results = await geocodeAddress(value);
-        if (Array.isArray(results)) {
-          setSuggestions(results.slice(0, 5));
-          setShowSuggestions(true);
-        } else {
-          setSuggestions([]);
-          setShowSuggestions(false);
-        }
-      } catch (error) {
-        console.error('Error fetching suggestions:', error);
-        setSuggestions([]);
-      }
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, []);
-
-  const handleSelectSuggestion = (suggestion) => {
-    if (activeSuggestionField === 'current') {
-      setCurrentLocationInput(suggestion.display_name);
-      dispatch(setCenter([parseFloat(suggestion.lat), parseFloat(suggestion.lon)]));
-    } else {
-      setDestinationInput(suggestion.display_name);
-      setSelectedDestination({
-        lat: parseFloat(suggestion.lat),
-        lng: parseFloat(suggestion.lon),
-        name: suggestion.display_name,
-      });
-    }
-    setShowSuggestions(false);
-    setSuggestions([]);
-  };
-
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -123,7 +89,6 @@ const Map = () => {
           const { latitude, longitude } = position.coords;
           dispatch(setUserLocation({ lat: latitude, lng: longitude }));
           dispatch(setCenter([latitude, longitude]));
-          setCurrentLocationInput('Current Location');
         },
         (error) => {
           console.error('Error getting location:', error);
@@ -137,7 +102,7 @@ const Map = () => {
       return;
     }
     // Navigate to route result page
-    navigate('/route-result');
+    navigate('/route-result', { state: { destination: selectedDestination } });
   };
 
   const handleReportObstacle = () => {
@@ -154,6 +119,12 @@ const Map = () => {
     } else {
       handleUseCurrentLocation();
     }
+  };
+
+  const handleQuickAction = (type) => {
+    // Quick actions for Home, Work, etc.
+    // This would typically load saved locations from user profile
+    console.log('Quick action:', type);
   };
 
   return (
@@ -183,143 +154,122 @@ const Map = () => {
       </Modal>
 
       <div className="h-[calc(100vh-64px)] relative">
-        {/* Top Search Bar */}
-        <div className="absolute top-0 left-0 right-0 z-[1000] bg-white shadow-md">
-          <div className="max-w-4xl mx-auto p-4">
+        {/* Translucent Header with Backdrop Blur */}
+        <div className="absolute top-0 left-0 right-0 z-[1000]">
+          <GlassCard className="m-4 p-4">
             <div className="space-y-3">
-              {/* Current Location Input */}
+              {/* From → To Dual Search */}
               <div className="relative">
-                <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 focus-within:border-primary-main focus-within:ring-2 focus-within:ring-primary-lighter">
-                  <MapPinIcon className="h-5 w-5 text-primary-main ml-3" />
+                <div className="flex items-center bg-gray-100 rounded-lg px-3 py-3">
+                  <MapPinIcon className="h-5 w-5 text-primary-main mr-2 flex-shrink-0" />
                   <input
                     type="text"
-                    value={currentLocationInput}
-                    onChange={(e) => handleSearchInput(e.target.value, 'current')}
-                    placeholder="Current location"
-                    className="w-full px-3 py-3 bg-transparent border-none focus:outline-none text-sm"
+                    value={fromLocation}
+                    readOnly
+                    placeholder="From"
+                    className="flex-1 bg-transparent border-none focus:outline-none text-body font-medium"
                   />
-                  <button
-                    onClick={handleUseCurrentLocation}
-                    className="mr-2 text-xs text-primary-main hover:text-primary-dark font-medium"
-                  >
-                    Use Current
-                  </button>
                 </div>
               </div>
 
-              {/* Destination Input */}
               <div className="relative">
-                <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 focus-within:border-primary-main focus-within:ring-2 focus-within:ring-primary-lighter">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 ml-3" />
+                <div className="flex items-center bg-gray-100 rounded-lg px-3 py-3 cursor-pointer"
+                     onClick={() => navigate('/search')}>
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" />
                   <input
                     type="text"
-                    value={destinationInput}
-                    onChange={(e) => handleSearchInput(e.target.value, 'destination')}
+                    value={toLocation}
                     placeholder="Where to?"
-                    className="w-full px-3 py-3 bg-transparent border-none focus:outline-none text-sm"
+                    readOnly
+                    className="flex-1 bg-transparent border-none focus:outline-none text-body cursor-pointer"
                   />
                 </div>
+              </div>
 
-                {/* Suggestions Dropdown */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-64 overflow-y-auto z-50">
-                    {suggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                      >
-                        <div className="flex items-start">
-                          <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {suggestion.display_name.split(',')[0]}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate">
-                              {suggestion.display_name}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+              {/* Quick Actions */}
+              <div className="flex gap-2 pt-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleQuickAction('home')}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <HomeIcon className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Home</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleQuickAction('work')}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <BriefcaseIcon className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Work</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleQuickAction('favorites')}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <StarIcon className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Favorites</span>
+                </motion.button>
               </div>
             </div>
 
             {/* Guest User Prompt */}
             {!isAuthenticated && (
               <div className="mt-3 text-center">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-600">
                   <button
                     onClick={() => setShowAuthModal(true)}
-                    className="text-primary-main hover:text-primary-dark font-medium"
+                    className="text-primary-main hover:text-primary-dark font-semibold"
                   >
                     Sign in
                   </button>
-                  {' '}to save routes and unlock premium features
+                  {' '}to save routes
                 </p>
               </div>
             )}
-          </div>
+          </GlassCard>
         </div>
-
-        {/* Route Preview Panel */}
-        {selectedDestination && (
-          <div className="absolute top-[180px] left-4 right-4 z-[999] max-w-md mx-auto">
-            <div className="bg-white rounded-lg shadow-xl p-4 border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-2">Route Preview</h3>
-              <p className="text-sm text-gray-600 mb-3 truncate">{selectedDestination.name}</p>
-              <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                <div>
-                  <p className="text-xs text-gray-500">Distance</p>
-                  <p className="text-sm font-semibold">Calculating...</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Time</p>
-                  <p className="text-sm font-semibold">Calculating...</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Smoothness</p>
-                  <p className="text-sm font-semibold">Calculating...</p>
-                </div>
-              </div>
-              <Button fullWidth onClick={handleStartNavigation}>
-                View Routes
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Floating Action Buttons - Right Side */}
         <div className="absolute bottom-8 right-4 z-[998] flex flex-col gap-3">
-          {/* User Location Button */}
-          <button
+          {/* Recenter Button */}
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={handleCenterOnUser}
-            className="bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow border border-gray-200"
+            className="bg-white rounded-full p-4 shadow-xl hover:shadow-2xl transition-shadow"
             title="Center on my location"
           >
             <MapPinIcon className="h-6 w-6 text-primary-main" />
-          </button>
+          </motion.button>
 
           {/* Report Obstacle Button */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={handleReportObstacle}
-            className="bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow border border-gray-200"
+            className="bg-warning-main rounded-full p-4 shadow-xl hover:shadow-2xl transition-shadow"
             title="Report obstacle"
           >
-            <ExclamationTriangleIcon className="h-6 w-6 text-warning-main" />
-          </button>
+            <ExclamationTriangleIcon className="h-6 w-6 text-white" />
+          </motion.button>
         </div>
 
         {/* Sign In Button - Top Right (only for guests) */}
         {!isAuthenticated && (
-          <div className="absolute top-[180px] right-4 z-[998]">
+          <div className="absolute top-4 right-20 z-[998]">
             <Link to="/login">
-              <Button size="sm">
-                <UserCircleIcon className="h-5 w-5 mr-2" />
-                Sign In
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button size="sm">
+                  <UserCircleIcon className="h-5 w-5 mr-2" />
+                  Sign In
+                </Button>
+              </motion.div>
             </Link>
           </div>
         )}

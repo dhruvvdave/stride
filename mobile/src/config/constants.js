@@ -57,16 +57,16 @@ export const IAP_PRODUCTS = {
   },
 };
 
-// Theme Colors
+// Theme Colors (updated to match design spec)
 export const COLORS = {
-  primary: '#2196F3',
+  primary: '#0066FF',
   secondary: '#757575',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  danger: '#F44336',
+  success: '#00C853',
+  warning: '#FF9500',
+  danger: '#FF3B30',
   background: {
-    light: '#F5F5F5',
-    dark: '#1C1C1E',
+    light: '#FFFFFF',
+    dark: '#000000', // OLED black
   },
   text: {
     light: '#212121',

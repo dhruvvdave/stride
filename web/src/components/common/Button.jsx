@@ -10,18 +10,18 @@ const Button = ({
   className = '',
   fullWidth = false,
 }) => {
-  const baseClasses = 'font-semibold rounded-md transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses = 'font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center';
   
   const variantClasses = {
-    primary: 'bg-primary-main text-white hover:bg-primary-dark focus:ring-primary-main shadow-md',
+    primary: 'bg-primary-main text-white hover:bg-primary-dark focus:ring-primary-main shadow-md hover:shadow-lg',
     secondary: 'bg-transparent text-primary-main border-2 border-primary-main hover:bg-primary-lighter focus:ring-primary-main',
-    danger: 'bg-danger-main text-white hover:bg-danger-dark focus:ring-danger-main shadow-md',
+    danger: 'bg-danger-main text-white hover:bg-danger-dark focus:ring-danger-main shadow-md hover:shadow-lg',
     text: 'bg-transparent text-primary-main hover:bg-primary-lighter focus:ring-primary-main',
   };
   
   const sizeClasses = {
     sm: 'px-4 py-2 text-sm',
-    md: 'px-6 py-3 text-base',
+    md: 'px-6 py-3 text-button',
     lg: 'px-8 py-4 text-lg',
   };
   
