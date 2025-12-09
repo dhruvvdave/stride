@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
-import Layout from '../components/layout/Layout';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import ReportObstacleModal from '../components/reporting/ReportObstacleModal';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
@@ -14,7 +13,9 @@ import {
   MagnifyingGlassIcon,
   UserCircleIcon,
   ExclamationTriangleIcon,
-  Bars3Icon,
+  HomeIcon,
+  BuildingOfficeIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -41,15 +42,13 @@ function MapUpdater({ center, zoom }) {
 const Map = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { center, zoom, obstacles, userLocation } = useSelector((state) => state.map);
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [mapReady, setMapReady] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [currentLocationInput, setCurrentLocationInput] = useState('');
-  const [destinationInput, setDestinationInput] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeSuggestionField, setActiveSuggestionField] = useState(null);
+  const [fromInput, setFromInput] = useState('');
+  const [toInput, setToInput] = useState('');
   const [selectedDestination, setSelectedDestination] = useState(null);
 
   useEffect(() => {
@@ -60,7 +59,7 @@ const Map = () => {
           const { latitude, longitude } = position.coords;
           dispatch(setUserLocation({ lat: latitude, lng: longitude }));
           dispatch(setCenter([latitude, longitude]));
-          setCurrentLocationInput('Current Location');
+          setFromInput('Current Location');
         },
         (error) => {
           console.error('Error getting location:', error);
@@ -69,52 +68,19 @@ const Map = () => {
         }
       );
     }
-  }, [dispatch]);
 
-  const handleSearchInput = useCallback(async (value, field) => {
-    if (field === 'current') {
-      setCurrentLocationInput(value);
-    } else {
-      setDestinationInput(value);
-    }
-    
-    setActiveSuggestionField(field);
-    
-    if (value.length > 2) {
-      try {
-        const results = await geocodeAddress(value);
-        if (Array.isArray(results)) {
-          setSuggestions(results.slice(0, 5));
-          setShowSuggestions(true);
-        } else {
-          setSuggestions([]);
-          setShowSuggestions(false);
-        }
-      } catch (error) {
-        console.error('Error fetching suggestions:', error);
-        setSuggestions([]);
-      }
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, []);
-
-  const handleSelectSuggestion = (suggestion) => {
-    if (activeSuggestionField === 'current') {
-      setCurrentLocationInput(suggestion.display_name);
-      dispatch(setCenter([parseFloat(suggestion.lat), parseFloat(suggestion.lon)]));
-    } else {
-      setDestinationInput(suggestion.display_name);
+    // Check if destination was passed from search
+    if (location.state?.destination) {
+      const dest = location.state.destination;
+      setToInput(dest.display_name || 'Selected Location');
       setSelectedDestination({
-        lat: parseFloat(suggestion.lat),
-        lng: parseFloat(suggestion.lon),
-        name: suggestion.display_name,
+        lat: parseFloat(dest.lat),
+        lng: parseFloat(dest.lon),
+        name: dest.display_name,
       });
+      dispatch(setCenter([parseFloat(dest.lat), parseFloat(dest.lon)]));
     }
-    setShowSuggestions(false);
-    setSuggestions([]);
-  };
+  }, [dispatch, location.state]);
 
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
@@ -123,7 +89,7 @@ const Map = () => {
           const { latitude, longitude } = position.coords;
           dispatch(setUserLocation({ lat: latitude, lng: longitude }));
           dispatch(setCenter([latitude, longitude]));
-          setCurrentLocationInput('Current Location');
+          setFromInput('Current Location');
         },
         (error) => {
           console.error('Error getting location:', error);
@@ -156,8 +122,17 @@ const Map = () => {
     }
   };
 
+  const handleQuickAction = (type) => {
+    // TODO: Implement quick actions based on saved favorites
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+    } else {
+      // Navigate to saved location
+    }
+  };
+
   return (
-    <Layout requireAuth={false}>
+    <div className="h-screen relative overflow-hidden">
       <ReportObstacleModal />
       
       {/* Auth Modal for guest users */}
@@ -169,7 +144,7 @@ const Map = () => {
       >
         <div className="text-center">
           <p className="text-gray-600 mb-6">
-            Sign in to report obstacles and unlock premium features like saving routes and advanced analytics.
+            Sign in to save routes, report obstacles, and unlock premium features.
           </p>
           <div className="flex flex-col gap-3">
             <Link to="/login" className="w-full">
@@ -182,207 +157,223 @@ const Map = () => {
         </div>
       </Modal>
 
-      <div className="h-[calc(100vh-64px)] relative">
-        {/* Top Search Bar */}
-        <div className="absolute top-0 left-0 right-0 z-[1000] bg-white shadow-md">
-          <div className="max-w-4xl mx-auto p-4">
-            <div className="space-y-3">
-              {/* Current Location Input */}
-              <div className="relative">
-                <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 focus-within:border-primary-main focus-within:ring-2 focus-within:ring-primary-lighter">
-                  <MapPinIcon className="h-5 w-5 text-primary-main ml-3" />
-                  <input
-                    type="text"
-                    value={currentLocationInput}
-                    onChange={(e) => handleSearchInput(e.target.value, 'current')}
-                    placeholder="Current location"
-                    className="w-full px-3 py-3 bg-transparent border-none focus:outline-none text-sm"
-                  />
-                  <button
-                    onClick={handleUseCurrentLocation}
-                    className="mr-2 text-xs text-primary-main hover:text-primary-dark font-medium"
-                  >
-                    Use Current
-                  </button>
+      {/* Translucent Header with Backdrop Blur */}
+      <div className="absolute top-0 left-0 right-0 z-[1000] bg-white/80 backdrop-blur-lg shadow-lg">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          {/* Dual Search Input */}
+          <div className="space-y-2">
+            {/* From Input */}
+            <div className="relative">
+              <div className="flex items-center bg-white rounded-xl border-2 border-gray-100 shadow-md hover:shadow-lg transition-shadow">
+                <div className="pl-4">
+                  <div className="w-3 h-3 bg-primary-main rounded-full" />
                 </div>
-              </div>
-
-              {/* Destination Input */}
-              <div className="relative">
-                <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 focus-within:border-primary-main focus-within:ring-2 focus-within:ring-primary-lighter">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 ml-3" />
-                  <input
-                    type="text"
-                    value={destinationInput}
-                    onChange={(e) => handleSearchInput(e.target.value, 'destination')}
-                    placeholder="Where to?"
-                    className="w-full px-3 py-3 bg-transparent border-none focus:outline-none text-sm"
-                  />
-                </div>
-
-                {/* Suggestions Dropdown */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-64 overflow-y-auto z-50">
-                    {suggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                      >
-                        <div className="flex items-start">
-                          <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {suggestion.display_name.split(',')[0]}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate">
-                              {suggestion.display_name}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <input
+                  type="text"
+                  value={fromInput}
+                  onClick={() => navigate('/search')}
+                  readOnly
+                  placeholder="Current location"
+                  className="w-full px-4 py-3 bg-transparent border-none focus:outline-none text-base font-medium cursor-pointer"
+                />
+                <button
+                  onClick={handleUseCurrentLocation}
+                  className="mr-3 text-sm text-primary-main hover:text-primary-dark font-semibold px-3 py-1 rounded-lg hover:bg-primary-lighter transition-colors"
+                >
+                  Use Current
+                </button>
               </div>
             </div>
 
-            {/* Guest User Prompt */}
-            {!isAuthenticated && (
-              <div className="mt-3 text-center">
-                <p className="text-xs text-gray-500">
-                  <button
-                    onClick={() => setShowAuthModal(true)}
-                    className="text-primary-main hover:text-primary-dark font-medium"
-                  >
-                    Sign in
-                  </button>
-                  {' '}to save routes and unlock premium features
-                </p>
+            {/* To Input */}
+            <div className="relative">
+              <div className="flex items-center bg-white rounded-xl border-2 border-gray-100 shadow-md hover:shadow-lg transition-shadow">
+                <div className="pl-4">
+                  <div className="w-3 h-3 bg-danger-main rounded-full" />
+                </div>
+                <input
+                  type="text"
+                  value={toInput}
+                  onClick={() => navigate('/search')}
+                  readOnly
+                  placeholder="Where to?"
+                  className="w-full px-4 py-3 bg-transparent border-none focus:outline-none text-base font-medium cursor-pointer"
+                />
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 mr-4" />
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Route Preview Panel */}
-        {selectedDestination && (
-          <div className="absolute top-[180px] left-4 right-4 z-[999] max-w-md mx-auto">
-            <div className="bg-white rounded-lg shadow-xl p-4 border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-2">Route Preview</h3>
-              <p className="text-sm text-gray-600 mb-3 truncate">{selectedDestination.name}</p>
-              <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                <div>
-                  <p className="text-xs text-gray-500">Distance</p>
-                  <p className="text-sm font-semibold">Calculating...</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Time</p>
-                  <p className="text-sm font-semibold">Calculating...</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Smoothness</p>
-                  <p className="text-sm font-semibold">Calculating...</p>
-                </div>
-              </div>
-              <Button fullWidth onClick={handleStartNavigation}>
-                View Routes
-              </Button>
             </div>
           </div>
-        )}
 
-        {/* Floating Action Buttons - Right Side */}
-        <div className="absolute bottom-8 right-4 z-[998] flex flex-col gap-3">
-          {/* User Location Button */}
-          <button
-            onClick={handleCenterOnUser}
-            className="bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow border border-gray-200"
-            title="Center on my location"
-          >
-            <MapPinIcon className="h-6 w-6 text-primary-main" />
-          </button>
-
-          {/* Report Obstacle Button */}
-          <button
-            onClick={handleReportObstacle}
-            className="bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow border border-gray-200"
-            title="Report obstacle"
-          >
-            <ExclamationTriangleIcon className="h-6 w-6 text-warning-main" />
-          </button>
-        </div>
-
-        {/* Sign In Button - Top Right (only for guests) */}
-        {!isAuthenticated && (
-          <div className="absolute top-[180px] right-4 z-[998]">
-            <Link to="/login">
-              <Button size="sm">
-                <UserCircleIcon className="h-5 w-5 mr-2" />
-                Sign In
-              </Button>
-            </Link>
-          </div>
-        )}
-
-        {/* Map */}
-        <MapContainer
-          center={center}
-          zoom={zoom}
-          className="h-full w-full"
-          zoomControl={true}
-          whenReady={() => setMapReady(true)}
-        >
-          <MapUpdater center={center} zoom={zoom} />
-          
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {/* User Location Marker */}
-          {userLocation && (
-            <Marker position={[userLocation.lat, userLocation.lng]}>
-              <Popup>You are here</Popup>
-            </Marker>
-          )}
-
-          {/* Destination Marker */}
-          {selectedDestination && (
-            <Marker position={[selectedDestination.lat, selectedDestination.lng]}>
-              <Popup>{selectedDestination.name}</Popup>
-            </Marker>
-          )}
-
-          {/* Obstacle Markers */}
-          {obstacles.map((obstacle) => (
-            <Marker
-              key={obstacle.id}
-              position={[obstacle.latitude, obstacle.longitude]}
+          {/* Quick Actions */}
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+            <button
+              onClick={() => handleQuickAction('home')}
+              className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all whitespace-nowrap"
             >
-              <Popup>
-                <div className="p-2">
-                  <h3 className="font-semibold text-lg mb-1">{obstacle.type}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{obstacle.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className={`
-                      px-2 py-1 rounded text-xs font-semibold
-                      ${obstacle.severity === 'high' ? 'bg-danger-lighter text-danger-dark' : ''}
-                      ${obstacle.severity === 'medium' ? 'bg-warning-lighter text-warning-dark' : ''}
-                      ${obstacle.severity === 'low' ? 'bg-success-lighter text-success-dark' : ''}
-                    `}>
-                      {obstacle.severity}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {obstacle.votes || 0} votes
-                    </span>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
+              <HomeIcon className="h-5 w-5 text-primary-main" />
+              <span className="text-sm font-semibold">Home</span>
+            </button>
+            <button
+              onClick={() => handleQuickAction('work')}
+              className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all whitespace-nowrap"
+            >
+              <BuildingOfficeIcon className="h-5 w-5 text-primary-main" />
+              <span className="text-sm font-semibold">Work</span>
+            </button>
+            <button
+              onClick={() => handleQuickAction('favorites')}
+              className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all whitespace-nowrap"
+            >
+              <StarIcon className="h-5 w-5 text-warning-main" />
+              <span className="text-sm font-semibold">Favorites</span>
+            </button>
+          </div>
+
+          {/* Guest User Prompt */}
+          {!isAuthenticated && (
+            <div className="mt-3 text-center">
+              <p className="text-xs text-gray-600">
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="text-primary-main hover:text-primary-dark font-semibold"
+                >
+                  Sign in to save routes
+                </button>
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-    </Layout>
+
+      {/* Route Preview Panel */}
+      {selectedDestination && (
+        <div className="absolute top-[240px] left-4 right-4 z-[999] max-w-md mx-auto">
+          <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl p-5 border border-gray-100">
+            <h3 className="font-bold text-gray-900 mb-1 text-lg">Route Preview</h3>
+            <p className="text-sm text-gray-600 mb-4 truncate">{selectedDestination.name}</p>
+            <div className="grid grid-cols-3 gap-3 mb-4 text-center">
+              <div className="bg-gray-50 rounded-lg p-2">
+                <p className="text-xs text-gray-500 mb-1">Distance</p>
+                <p className="text-sm font-bold">Calculating...</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2">
+                <p className="text-xs text-gray-500 mb-1">Time</p>
+                <p className="text-sm font-bold">Calculating...</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2">
+                <p className="text-xs text-gray-500 mb-1">Smoothness</p>
+                <p className="text-sm font-bold">Calculating...</p>
+              </div>
+            </div>
+            <Button fullWidth onClick={handleStartNavigation}>
+              View Routes
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Action Buttons - Right Side */}
+      <div className="absolute bottom-8 right-4 z-[998] flex flex-col gap-3">
+        {/* User Location Button */}
+        <button
+          onClick={handleCenterOnUser}
+          className="bg-white/90 backdrop-blur-lg rounded-full p-4 shadow-2xl hover:shadow-xl transition-all border border-gray-100 hover:scale-110"
+          title="Center on my location"
+        >
+          <MapPinIcon className="h-6 w-6 text-primary-main" />
+        </button>
+
+        {/* Report Obstacle Button */}
+        <button
+          onClick={handleReportObstacle}
+          className="bg-white/90 backdrop-blur-lg rounded-full p-4 shadow-2xl hover:shadow-xl transition-all border border-gray-100 hover:scale-110"
+          title="Report obstacle"
+        >
+          <ExclamationTriangleIcon className="h-6 w-6 text-warning-main" />
+        </button>
+      </div>
+
+      {/* User Profile Button - Top Right (for authenticated users) */}
+      {isAuthenticated && user && (
+        <div className="absolute top-[240px] right-4 z-[998]">
+          <Link to="/profile">
+            <button className="bg-white/90 backdrop-blur-lg rounded-full p-3 shadow-xl hover:shadow-2xl transition-all border border-gray-100">
+              <UserCircleIcon className="h-6 w-6 text-primary-main" />
+            </button>
+          </Link>
+        </div>
+      )}
+
+      {/* Sign In Button - Top Right (only for guests) */}
+      {!isAuthenticated && (
+        <div className="absolute top-[240px] right-4 z-[998]">
+          <Link to="/login">
+            <button className="bg-primary-main text-white rounded-full px-5 py-3 shadow-xl hover:shadow-2xl transition-all hover:bg-primary-dark flex items-center gap-2">
+              <UserCircleIcon className="h-5 w-5" />
+              <span className="text-sm font-semibold">Sign In</span>
+            </button>
+          </Link>
+        </div>
+      )}
+
+      {/* Map */}
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        className="h-full w-full"
+        zoomControl={true}
+        whenReady={() => setMapReady(true)}
+      >
+        <MapUpdater center={center} zoom={zoom} />
+        
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        {/* User Location Marker */}
+        {userLocation && (
+          <Marker position={[userLocation.lat, userLocation.lng]}>
+            <Popup>You are here</Popup>
+          </Marker>
+        )}
+
+        {/* Destination Marker */}
+        {selectedDestination && (
+          <Marker position={[selectedDestination.lat, selectedDestination.lng]}>
+            <Popup>{selectedDestination.name}</Popup>
+          </Marker>
+        )}
+
+        {/* Obstacle Markers */}
+        {obstacles.map((obstacle) => (
+          <Marker
+            key={obstacle.id}
+            position={[obstacle.latitude, obstacle.longitude]}
+          >
+            <Popup>
+              <div className="p-2">
+                <h3 className="font-semibold text-lg mb-1">{obstacle.type}</h3>
+                <p className="text-sm text-gray-600 mb-2">{obstacle.description}</p>
+                <div className="flex items-center justify-between">
+                  <span className={`
+                    px-2 py-1 rounded text-xs font-semibold
+                    ${obstacle.severity === 'high' ? 'bg-danger-lighter text-danger-dark' : ''}
+                    ${obstacle.severity === 'medium' ? 'bg-warning-lighter text-warning-dark' : ''}
+                    ${obstacle.severity === 'low' ? 'bg-success-lighter text-success-dark' : ''}
+                  `}>
+                    {obstacle.severity}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {obstacle.votes || 0} votes
+                  </span>
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 };
 
