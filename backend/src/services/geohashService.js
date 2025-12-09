@@ -120,8 +120,8 @@ function decode(geohash) {
  */
 function neighbors(geohash) {
   const bounds = decode(geohash);
-  const latDelta = (bounds.latMax - bounds.latMin) / 2;
-  const lngDelta = (bounds.lngMax - bounds.lngMin) / 2;
+  const latDelta = bounds.latMax - bounds.latMin;
+  const lngDelta = bounds.lngMax - bounds.lngMin;
   
   const precision = geohash.length;
   

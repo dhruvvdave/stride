@@ -12,4 +12,7 @@ module.exports = {
   verbose: true,
   testTimeout: 10000,
   setupFilesAfterEnv: ['<rootDir>/src/tests/setup.js'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(concaveman|rbush)/)',
+  ],
 };
