@@ -97,13 +97,16 @@ export const animatePulse = (animatedValue) => {
 };
 
 // Shake animation (for errors)
+const SHAKE_OFFSET = 10;
+const SHAKE_DURATION = 50;
+
 export const animateShake = (animatedValue) => {
   return Animated.sequence([
-    Animated.timing(animatedValue, { toValue: 10, duration: 50, useNativeDriver: true }),
-    Animated.timing(animatedValue, { toValue: -10, duration: 50, useNativeDriver: true }),
-    Animated.timing(animatedValue, { toValue: 10, duration: 50, useNativeDriver: true }),
-    Animated.timing(animatedValue, { toValue: -10, duration: 50, useNativeDriver: true }),
-    Animated.timing(animatedValue, { toValue: 0, duration: 50, useNativeDriver: true }),
+    Animated.timing(animatedValue, { toValue: SHAKE_OFFSET, duration: SHAKE_DURATION, useNativeDriver: true }),
+    Animated.timing(animatedValue, { toValue: -SHAKE_OFFSET, duration: SHAKE_DURATION, useNativeDriver: true }),
+    Animated.timing(animatedValue, { toValue: SHAKE_OFFSET, duration: SHAKE_DURATION, useNativeDriver: true }),
+    Animated.timing(animatedValue, { toValue: -SHAKE_OFFSET, duration: SHAKE_DURATION, useNativeDriver: true }),
+    Animated.timing(animatedValue, { toValue: 0, duration: SHAKE_DURATION, useNativeDriver: true }),
   ]);
 };
 

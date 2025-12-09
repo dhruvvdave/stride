@@ -7,6 +7,13 @@ const GlassCard = ({
   shadow = true,
   dark = false,
 }) => {
+  const blurValues = {
+    sm: '4px',
+    md: '12px',
+    lg: '16px',
+    xl: '24px',
+  };
+
   const blurClasses = {
     sm: 'backdrop-blur-sm',
     md: 'backdrop-blur-md',
@@ -24,7 +31,7 @@ const GlassCard = ({
     <div 
       className={`${bgClass} ${blurClasses[blur]} ${shadowClass} rounded-xl ${className}`}
       style={{
-        WebkitBackdropFilter: `blur(${blur === 'sm' ? '4px' : blur === 'md' ? '12px' : blur === 'lg' ? '16px' : '24px'})`,
+        WebkitBackdropFilter: `blur(${blurValues[blur]})`,
       }}
     >
       {children}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
-import { colors } from '../theme/colors';
+import { colors } from '../../theme/colors';
 
 const GlassCard = ({ 
   children, 
