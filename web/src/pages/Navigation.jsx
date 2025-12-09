@@ -18,17 +18,17 @@ const Navigation = () => {
 
   const handleStopNavigation = () => {
     dispatch(stopNavigation());
-    navigate('/app');
+    navigate('/');
   };
 
   if (!selectedRoute || !isNavigating) {
     return (
-      <Layout requireAuth={true}>
+      <Layout requireAuth={false}>
         <div className="p-6 max-w-7xl mx-auto">
           <Card padding="lg">
             <div className="text-center py-12">
               <p className="text-gray-600 mb-4">No active navigation</p>
-              <Button onClick={() => navigate('/app')}>
+              <Button onClick={() => navigate('/')}>
                 Back to Map
               </Button>
             </div>
@@ -42,7 +42,7 @@ const Navigation = () => {
   const nextInstruction = selectedRoute.steps?.[currentStep + 1];
 
   return (
-    <Layout requireAuth={true}>
+    <Layout requireAuth={false}>
       <div className="h-[calc(100vh-64px)] flex flex-col">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-4">

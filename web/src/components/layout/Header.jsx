@@ -38,8 +38,8 @@ const Header = ({ onMenuClick }) => {
           <nav className="hidden md:flex items-center space-x-8">
             {!isAuthenticated ? (
               <>
-                <Link to="/" className="text-gray-700 hover:text-primary-main transition-colors">
-                  Home
+                <Link to="/landing" className="text-gray-700 hover:text-primary-main transition-colors">
+                  About
                 </Link>
                 <Link to="/login" className="text-gray-700 hover:text-primary-main transition-colors">
                   Login
@@ -53,7 +53,7 @@ const Header = ({ onMenuClick }) => {
               </>
             ) : (
               <>
-                <Link to="/app" className="text-gray-700 hover:text-primary-main transition-colors">
+                <Link to="/" className="text-gray-700 hover:text-primary-main transition-colors">
                   Map
                 </Link>
                 <Link to="/community" className="text-gray-700 hover:text-primary-main transition-colors">

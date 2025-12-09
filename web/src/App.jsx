@@ -52,35 +52,14 @@ function AppContent() {
     <ErrorBoundary>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Map />} />
+        <Route path="/landing" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/route-result" element={<RouteResult />} />
+        <Route path="/navigate" element={<Navigation />} />
 
         {/* Protected Routes */}
-        <Route
-          path="/app"
-          element={
-            <ProtectedRoute>
-              <Map />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/route-result"
-          element={
-            <ProtectedRoute>
-              <RouteResult />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/navigate"
-          element={
-            <ProtectedRoute>
-              <Navigation />
-            </ProtectedRoute>
-          }
-        />
         <Route
           path="/profile"
           element={
