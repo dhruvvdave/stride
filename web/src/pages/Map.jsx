@@ -83,8 +83,13 @@ const Map = () => {
     if (value.length > 2) {
       try {
         const results = await geocodeAddress(value);
-        setSuggestions(results.slice(0, 5));
-        setShowSuggestions(true);
+        if (Array.isArray(results)) {
+          setSuggestions(results.slice(0, 5));
+          setShowSuggestions(true);
+        } else {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
       } catch (error) {
         console.error('Error fetching suggestions:', error);
         setSuggestions([]);
@@ -227,10 +232,10 @@ const Map = () => {
                         <div className="flex items-start">
                           <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
                           <div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 truncate">
                               {suggestion.display_name.split(',')[0]}
                             </p>
-                            <p className="text-xs text-gray-500 line-clamp-1">
+                            <p className="text-xs text-gray-500 truncate">
                               {suggestion.display_name}
                             </p>
                           </div>
@@ -264,19 +269,19 @@ const Map = () => {
           <div className="absolute top-[180px] left-4 right-4 z-[999] max-w-md mx-auto">
             <div className="bg-white rounded-lg shadow-xl p-4 border border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-2">Route Preview</h3>
-              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{selectedDestination.name}</p>
+              <p className="text-sm text-gray-600 mb-3 truncate">{selectedDestination.name}</p>
               <div className="grid grid-cols-3 gap-2 mb-4 text-center">
                 <div>
                   <p className="text-xs text-gray-500">Distance</p>
-                  <p className="text-sm font-semibold">-- km</p>
+                  <p className="text-sm font-semibold">Calculating...</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Time</p>
-                  <p className="text-sm font-semibold">-- min</p>
+                  <p className="text-sm font-semibold">Calculating...</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Smoothness</p>
-                  <p className="text-sm font-semibold">--/100</p>
+                  <p className="text-sm font-semibold">Calculating...</p>
                 </div>
               </div>
               <Button fullWidth onClick={handleStartNavigation}>
