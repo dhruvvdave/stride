@@ -194,16 +194,33 @@ async function invalidateCache(lat, lng) {
   try {
     const redis = await getRedisClient();
     if (redis) {
-      // Get all cache keys that might contain this location
-      // For simplicity, we invalidate based on geohash prefix
+      // Invalidate cache for this location and its neighbors
+      // Using a targeted approach based on geohash
       const hash = geohash.encode(lat, lng, 6);
-      const pattern = `clusters:*:*${hash}*`;
+      const hashestoInvalidate = [hash, ...geohash.neighbors(hash)];
       
-      // Note: In production, consider using a more efficient invalidation strategy
-      // This is a simplified version
-      const keys = await redis.keys(pattern);
-      if (keys.length > 0) {
-        await redis.del(keys);
+      // Delete cache keys for these geohashes
+      const keysToDelete = [];
+      for (const h of hashestoInvalidate) {
+        // Pattern matches any cluster cache with this geohash substring
+        const pattern = `clusters:*${h}*`;
+        
+        // Use SCAN instead of KEYS for production safety
+        let cursor = 0;
+        do {
+          const reply = await redis.scan(cursor, {
+            MATCH: pattern,
+            COUNT: 100,
+          });
+          cursor = reply.cursor;
+          if (reply.keys.length > 0) {
+            keysToDelete.push(...reply.keys);
+          }
+        } while (cursor !== 0);
+      }
+      
+      if (keysToDelete.length > 0) {
+        await redis.del(keysToDelete);
       }
     }
   } catch (error) {

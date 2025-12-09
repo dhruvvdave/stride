@@ -16,7 +16,7 @@ const passport = require('./config/passport');
 
 // Import middleware
 const { errorHandler, notFoundHandler, logger } = require('./api/middleware/errorHandler');
-const { apiLimiter } = require('./api/middleware/rateLimiter');
+const { apiLimiter, initializeReportLimiter } = require('./api/middleware/rateLimiter');
 
 // Import routes
 const authRoutes = require('./api/routes/auth');
@@ -152,6 +152,14 @@ async function initializeConnections() {
       await getRedisClient();
     } catch (redisError) {
       logger.warn('⚠️  Redis connection failed (optional)', { error: redisError.message });
+    }
+
+    // Initialize report limiter
+    try {
+      await initializeReportLimiter();
+      logger.info('✅ Report rate limiter initialized');
+    } catch (limiterError) {
+      logger.warn('⚠️  Report limiter initialization failed', { error: limiterError.message });
     }
 
     // Initialize background jobs

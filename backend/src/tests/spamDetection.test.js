@@ -26,13 +26,16 @@ describe('Spam Detection Service', () => {
   });
 
   afterAll(async () => {
-    // Clean up test data
+    // Clean up test data in correct order to avoid foreign key violations
     try {
+      // Delete reports first (depends on obstacles and users)
       await db.query('DELETE FROM reports WHERE user_id = $1', [testUserId]);
+      // Then delete obstacles (depends on users)
       await db.query('DELETE FROM obstacles WHERE id = $1', [testObstacleId]);
+      // Finally delete users
       await db.query('DELETE FROM users WHERE id = $1', [testUserId]);
     } catch (error) {
-      console.error('Cleanup error:', error);
+      // Errors expected in test environment without database
     }
   });
 

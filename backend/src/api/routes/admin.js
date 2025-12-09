@@ -9,8 +9,7 @@ const db = require('../../config/database');
 const { auth } = require('../middleware/auth');
 const { validateQuery } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { getUserSpamScore, isFlagged } = require('../../services/spamDetection');
-const { isFlagged: isTrustFlagged } = require('../../services/trustScore');
+const { getUserSpamScore } = require('../../services/spamDetection');
 
 const router = express.Router();
 

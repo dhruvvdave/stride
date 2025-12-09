@@ -58,8 +58,12 @@ const uploadLimiter = rateLimit({
  * Report rate limiter - Dynamic based on subscription
  * Free: 5 reports per day
  * Premium: 20 reports per day
+ * 
+ * Initialize this as a middleware during app startup
  */
-const createReportLimiter = async () => {
+let reportLimiter;
+
+async function initializeReportLimiter() {
   let store;
   
   try {
@@ -75,7 +79,7 @@ const createReportLimiter = async () => {
     console.warn('Redis not available for rate limiting, using memory store');
   }
 
-  return rateLimit({
+  reportLimiter = rateLimit({
     windowMs: 24 * 60 * 60 * 1000, // 24 hours
     max: async (req) => {
       // Check user subscription status
@@ -104,11 +108,22 @@ const createReportLimiter = async () => {
     legacyHeaders: false,
     store,
   });
-};
+
+  return reportLimiter;
+}
+
+// Getter function for the report limiter
+function getReportLimiter() {
+  if (!reportLimiter) {
+    throw new Error('Report limiter not initialized. Call initializeReportLimiter() first.');
+  }
+  return reportLimiter;
+}
 
 module.exports = { 
   apiLimiter, 
   authLimiter, 
   uploadLimiter,
-  createReportLimiter,
+  initializeReportLimiter,
+  getReportLimiter,
 };

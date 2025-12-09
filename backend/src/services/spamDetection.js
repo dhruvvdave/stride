@@ -121,8 +121,12 @@ async function isSuspiciousClustering(userId, lat, lng) {
 
 /**
  * Detect spam patterns in report
- * @param {Object} report - Report data
- * @returns {Promise<Object>} Spam detection result
+ * @param {string} userId - User ID
+ * @param {string} type - Obstacle type
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @param {string} description - Report description
+ * @returns {Promise<Object>} Spam detection result with flags
  */
 async function detectSpam(userId, type, lat, lng, description) {
   const flags = {
