@@ -4,6 +4,11 @@ const db = require('../../config/database');
 const { auth, optionalAuth } = require('../middleware/auth');
 const { validate, validateParams, validateQuery } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { incrementConfirmations, incrementDisputes, updateConfidenceScore } = require('../../services/confidenceScore');
+const { incrementVerifiedReports, incrementDisputedReports } = require('../../services/trustScore');
+const { getClusters, invalidateCache } = require('../../services/clusterService');
+const { detectSpam } = require('../../services/spamDetection');
+const geohash = require('../../services/geohashService');
 
 const router = express.Router();
 
@@ -16,6 +21,7 @@ const obstacleQuerySchema = Joi.object({
   types: Joi.array().items(Joi.string().valid('speedbump', 'pothole', 'construction', 'steep_grade', 'railroad_crossing')),
   severity: Joi.array().items(Joi.string().valid('low', 'medium', 'high')),
   status: Joi.string().valid('active', 'fixed', 'disputed').default('active'),
+  minConfidence: Joi.number().min(0).max(100).default(30),
 });
 
 const createObstacleSchema = Joi.object({
@@ -45,7 +51,7 @@ const obstacleIdSchema = Joi.object({
  * Get obstacles in bounding box (spatial query)
  */
 router.get('/', validateQuery(obstacleQuerySchema), optionalAuth, asyncHandler(async (req, res) => {
-  const { minLat, maxLat, minLng, maxLng, types, severity, status } = req.query;
+  const { minLat, maxLat, minLng, maxLng, types, severity, status, minConfidence } = req.query;
 
   // Build query
   let query = `
@@ -54,16 +60,18 @@ router.get('/', validateQuery(obstacleQuerySchema), optionalAuth, asyncHandler(a
       ST_Y(o.location::geometry) as lat,
       ST_X(o.location::geometry) as lng,
       o.severity, o.verified, o.verification_count, o.status,
+      o.confidence_score, o.confirmations_count,
       o.created_at, o.last_verified_at,
       u.name as created_by_name
     FROM obstacles o
     LEFT JOIN users u ON o.created_by = u.id
     WHERE o.location && ST_MakeEnvelope($1, $2, $3, $4, 4326)
       AND o.status = $5
+      AND COALESCE(o.confidence_score, 50) >= $6
   `;
 
-  const params = [minLng, minLat, maxLng, maxLat, status];
-  let paramCount = 6;
+  const params = [minLng, minLat, maxLng, maxLat, status, minConfidence];
+  let paramCount = 7;
 
   // Filter by types
   if (types && types.length > 0) {
@@ -79,7 +87,7 @@ router.get('/', validateQuery(obstacleQuerySchema), optionalAuth, asyncHandler(a
     paramCount++;
   }
 
-  query += ' ORDER BY o.created_at DESC LIMIT 500';
+  query += ' ORDER BY o.confidence_score DESC, o.created_at DESC LIMIT 500';
 
   const result = await db.query(query, params);
 
@@ -94,6 +102,8 @@ router.get('/', validateQuery(obstacleQuerySchema), optionalAuth, asyncHandler(a
     verified: row.verified,
     verificationCount: row.verification_count,
     status: row.status,
+    confidenceScore: row.confidence_score || 50,
+    confirmationsCount: row.confirmations_count || 0,
     createdByName: row.created_by_name,
     createdAt: row.created_at,
     lastVerifiedAt: row.last_verified_at,
@@ -169,6 +179,19 @@ router.get('/:id', validateParams(obstacleIdSchema), asyncHandler(async (req, re
 router.post('/', auth, validate(createObstacleSchema), asyncHandler(async (req, res) => {
   const { type, lat, lng, severity, description, photos, sensorData, confidenceScore } = req.body;
 
+  // Check for spam
+  const spamCheck = await detectSpam(req.user.id, type, lat, lng, description);
+  if (spamCheck.isSpam) {
+    return res.status(429).json({
+      success: false,
+      error: { 
+        message: 'Spam detected. Please wait before submitting more reports.',
+        code: 'SPAM_DETECTED',
+        flags: spamCheck,
+      },
+    });
+  }
+
   // Check for duplicate obstacles within 50m
   const duplicateCheck = await db.query(
     `SELECT id FROM obstacles 
@@ -190,12 +213,18 @@ router.post('/', auth, validate(createObstacleSchema), asyncHandler(async (req, 
     });
   }
 
+  // Calculate geohash
+  const obstacleGeohash = geohash.encode(lat, lng, 9);
+
+  // Calculate initial confidence score (50 base + 10 if photos)
+  const initialConfidence = photos && photos.length > 0 ? 60 : 50;
+
   // Create obstacle
   const obstacleResult = await db.query(
-    `INSERT INTO obstacles (type, location, severity, created_by, status)
-     VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, $4, $5, 'active')
-     RETURNING id, type, severity, verification_count, verified, status, created_at`,
-    [type, lng, lat, severity, req.user.id]
+    `INSERT INTO obstacles (type, location, severity, created_by, status, geohash, confidence_score)
+     VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, $4, $5, 'active', $6, $7)
+     RETURNING id, type, severity, verification_count, verified, status, confidence_score, created_at`,
+    [type, lng, lat, severity, req.user.id, obstacleGeohash, initialConfidence]
   );
 
   const obstacle = obstacleResult.rows[0];
@@ -213,6 +242,9 @@ router.post('/', auth, validate(createObstacleSchema), asyncHandler(async (req, 
     'UPDATE users SET reputation_points = reputation_points + $1 WHERE id = $2',
     [pointsAwarded, req.user.id]
   );
+
+  // Invalidate cluster cache for this location
+  await invalidateCache(lat, lng);
 
   res.status(201).json({
     success: true,
@@ -347,6 +379,187 @@ router.get('/:id/reports', validateParams(obstacleIdSchema), asyncHandler(async 
     data: {
       reports,
       count: reports.length,
+    },
+  });
+}));
+
+/**
+ * PUT /api/obstacles/:id/confirm
+ * Confirm an obstacle (auth required)
+ */
+router.put('/:id/confirm', auth, validateParams(obstacleIdSchema), asyncHandler(async (req, res) => {
+  // Check if obstacle exists
+  const obstacleResult = await db.query(
+    'SELECT id, created_by FROM obstacles WHERE id = $1 AND status = \'active\'',
+    [req.params.id]
+  );
+
+  if (obstacleResult.rows.length === 0) {
+    return res.status(404).json({
+      success: false,
+      error: { message: 'Obstacle not found or not active' },
+    });
+  }
+
+  const obstacle = obstacleResult.rows[0];
+
+  // Check if user already confirmed this obstacle
+  const existingConfirmation = await db.query(
+    'SELECT id FROM reports WHERE obstacle_id = $1 AND user_id = $2 AND report_type = \'confirm\'',
+    [req.params.id, req.user.id]
+  );
+
+  if (existingConfirmation.rows.length > 0) {
+    return res.status(400).json({
+      success: false,
+      error: { message: 'You have already confirmed this obstacle' },
+    });
+  }
+
+  // Create confirmation report
+  await db.query(
+    'INSERT INTO reports (obstacle_id, user_id, report_type) VALUES ($1, $2, \'confirm\')',
+    [req.params.id, req.user.id]
+  );
+
+  // Increment confirmations and update confidence score
+  const newConfidence = await incrementConfirmations(req.params.id);
+
+  // Update reporter trust score (if not their own obstacle)
+  if (obstacle.created_by !== req.user.id) {
+    await incrementVerifiedReports(obstacle.created_by);
+  }
+
+  // Log in obstacle history
+  await db.query(
+    `INSERT INTO obstacle_history (obstacle_id, action, user_id, new_value)
+     VALUES ($1, 'confirmed', $2, $3)`,
+    [req.params.id, req.user.id, JSON.stringify({ confirmations_count: 1 })]
+  );
+
+  // Award points to user
+  await db.query(
+    'UPDATE users SET reputation_points = reputation_points + 10 WHERE id = $1',
+    [req.user.id]
+  );
+
+  res.json({
+    success: true,
+    message: 'Obstacle confirmed successfully',
+    data: {
+      confidenceScore: newConfidence,
+      pointsAwarded: 10,
+    },
+  });
+}));
+
+/**
+ * PUT /api/obstacles/:id/dispute
+ * Dispute an obstacle (auth required)
+ */
+router.put('/:id/dispute', auth, validateParams(obstacleIdSchema), validate(Joi.object({
+  reason: Joi.string().required().max(500),
+})), asyncHandler(async (req, res) => {
+  const { reason } = req.body;
+
+  // Check if obstacle exists
+  const obstacleResult = await db.query(
+    'SELECT id, created_by FROM obstacles WHERE id = $1 AND status = \'active\'',
+    [req.params.id]
+  );
+
+  if (obstacleResult.rows.length === 0) {
+    return res.status(404).json({
+      success: false,
+      error: { message: 'Obstacle not found or not active' },
+    });
+  }
+
+  const obstacle = obstacleResult.rows[0];
+
+  // Check if user already disputed this obstacle
+  const existingDispute = await db.query(
+    'SELECT id FROM obstacle_disputes WHERE obstacle_id = $1 AND user_id = $2',
+    [req.params.id, req.user.id]
+  );
+
+  if (existingDispute.rows.length > 0) {
+    return res.status(400).json({
+      success: false,
+      error: { message: 'You have already disputed this obstacle' },
+    });
+  }
+
+  // Create dispute record
+  await db.query(
+    'INSERT INTO obstacle_disputes (obstacle_id, user_id, reason) VALUES ($1, $2, $3)',
+    [req.params.id, req.user.id, reason]
+  );
+
+  // Create dispute report
+  await db.query(
+    'INSERT INTO reports (obstacle_id, user_id, report_type, description) VALUES ($1, $2, \'dispute\', $3)',
+    [req.params.id, req.user.id, reason]
+  );
+
+  // Increment disputes and update confidence score
+  const newConfidence = await incrementDisputes(req.params.id);
+
+  // Update status to disputed if confidence is too low
+  if (newConfidence < 30) {
+    await db.query(
+      'UPDATE obstacles SET status = \'disputed\' WHERE id = $1',
+      [req.params.id]
+    );
+  }
+
+  // Update reporter trust score (penalize original reporter)
+  if (obstacle.created_by) {
+    await incrementDisputedReports(obstacle.created_by);
+  }
+
+  // Log in obstacle history
+  await db.query(
+    `INSERT INTO obstacle_history (obstacle_id, action, user_id, new_value)
+     VALUES ($1, 'disputed', $2, $3)`,
+    [req.params.id, req.user.id, JSON.stringify({ reason })]
+  );
+
+  res.json({
+    success: true,
+    message: 'Obstacle disputed successfully',
+    data: {
+      confidenceScore: newConfidence,
+    },
+  });
+}));
+
+/**
+ * GET /api/obstacles/clusters
+ * Get clustered obstacles for map rendering
+ */
+router.get('/clusters', validateQuery(Joi.object({
+  minLat: Joi.number().min(-90).max(90).required(),
+  maxLat: Joi.number().min(-90).max(90).required(),
+  minLng: Joi.number().min(-180).max(180).required(),
+  maxLng: Joi.number().min(-180).max(180).required(),
+  zoom: Joi.number().min(0).max(20).required(),
+  minConfidence: Joi.number().min(0).max(100).default(30),
+  types: Joi.array().items(Joi.string().valid('speedbump', 'pothole', 'construction', 'steep_grade', 'railroad_crossing')),
+  severity: Joi.array().items(Joi.string().valid('low', 'medium', 'high')),
+})), asyncHandler(async (req, res) => {
+  const { minLat, maxLat, minLng, maxLng, zoom, minConfidence, types, severity } = req.query;
+
+  const bounds = { minLat, maxLat, minLng, maxLng };
+  const options = { minConfidence, types, severity };
+
+  const clusters = await getClusters(bounds, zoom, options);
+
+  res.json({
+    success: true,
+    data: {
+      clusters,
+      count: clusters.length,
     },
   });
 }));
