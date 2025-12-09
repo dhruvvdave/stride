@@ -233,8 +233,6 @@ const MapScreen = ({ navigation }) => {
     </View>
   );
 };
-  );
-};
 
 const styles = StyleSheet.create({
   container: {

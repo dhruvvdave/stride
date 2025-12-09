@@ -23,6 +23,7 @@ const OnboardingScreen = ({ navigation }) => {
   const swiperRef = useRef(null);
   const confettiRef = useRef(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const pages = [
     {
@@ -52,6 +53,7 @@ const OnboardingScreen = ({ navigation }) => {
   ];
 
   const handleIndexChanged = (index) => {
+    setCurrentIndex(index);
     ReactNativeHapticFeedback.trigger('impactLight', hapticOptions);
     
     // Scale animation on page change
@@ -131,18 +133,15 @@ const OnboardingScreen = ({ navigation }) => {
         <TouchableOpacity 
           style={styles.button}
           onPress={() => {
-            if (swiperRef.current) {
-              const currentIndex = swiperRef.current.state.index;
-              if (currentIndex === pages.length - 1) {
-                handleGetStarted();
-              } else {
-                handleNext();
-              }
+            if (currentIndex === pages.length - 1) {
+              handleGetStarted();
+            } else {
+              handleNext();
             }
           }}
         >
           <Text style={styles.buttonText}>
-            {swiperRef.current?.state?.index === pages.length - 1 ? 'Get Started' : 'Next'}
+            {currentIndex === pages.length - 1 ? 'Get Started' : 'Next'}
           </Text>
         </TouchableOpacity>
       </View>

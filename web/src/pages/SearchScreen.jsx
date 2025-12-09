@@ -22,9 +22,14 @@ const SearchScreen = () => {
 
   useEffect(() => {
     // Load recent searches from localStorage
-    const stored = localStorage.getItem('recentSearches');
-    if (stored) {
-      setRecentSearches(JSON.parse(stored));
+    try {
+      const stored = localStorage.getItem('recentSearches');
+      if (stored) {
+        setRecentSearches(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Error loading recent searches:', error);
+      setRecentSearches([]);
     }
 
     // Load favorites if authenticated
