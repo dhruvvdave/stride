@@ -1,4 +1,6 @@
 const rateLimit = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis');
+const { getRedisClient } = require('../../config/redis');
 
 /**
  * General API rate limiter - 100 requests per 15 minutes
@@ -52,4 +54,61 @@ const uploadLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { apiLimiter, authLimiter, uploadLimiter };
+/**
+ * Report rate limiter - Dynamic based on subscription
+ * Free: 5 reports per day
+ * Premium: 20 reports per day
+ */
+const createReportLimiter = async () => {
+  let store;
+  
+  try {
+    const redisClient = await getRedisClient();
+    if (redisClient) {
+      // Use Redis store for distributed rate limiting
+      store = new RedisStore({
+        client: redisClient,
+        prefix: 'rl:reports:',
+      });
+    }
+  } catch (error) {
+    console.warn('Redis not available for rate limiting, using memory store');
+  }
+
+  return rateLimit({
+    windowMs: 24 * 60 * 60 * 1000, // 24 hours
+    max: async (req) => {
+      // Check user subscription status
+      if (!req.user) {
+        return 5; // Anonymous users get free tier limit
+      }
+
+      const isPremium = req.user.subscription_status === 'premium' || 
+                       req.user.subscription_status === 'premium_annual' ||
+                       req.user.role === 'admin';
+
+      return isPremium ? 20 : 5;
+    },
+    keyGenerator: (req) => {
+      // Use user ID if authenticated, otherwise use IP
+      return req.user ? `user:${req.user.id}` : `ip:${req.ip}`;
+    },
+    message: {
+      success: false,
+      error: {
+        message: 'Daily report limit reached. Upgrade to premium for more reports.',
+        code: 'REPORT_LIMIT_EXCEEDED',
+      },
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    store,
+  });
+};
+
+module.exports = { 
+  apiLimiter, 
+  authLimiter, 
+  uploadLimiter,
+  createReportLimiter,
+};
